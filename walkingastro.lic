@@ -106,19 +106,25 @@ class WalkingAstro
 
   def observe
     case DRCMM.peer_telescope
-    when "You believe you've learned all that you can about", "Too many futures cloud your mind - you learn nothing."
+    when /You believe you've learned all that you can about/, /Too many futures cloud your mind - you learn nothing/
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
       DRC.message('walkingastro: Matched on full pool.') if $debug_mode_walkingastro
       check_predict
-    when "You have not pondered your last observation sufficiently", "You see nothing regarding the future", "You are unable to make use of this latest observation"
+    when /You have not pondered your last observation sufficiently/, /You see nothing regarding the future/, /You are unable to make use of this latest observation/
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
       DRC.message('walkingastro: Matched on too soon or failed attempt. Not predicting.') if $debug_mode_walkingastro
+    when /you still learned more/
+      waitrt?
+      DRCMM.store_telescope(@telescope_storage)
+      DRC.message('walkingastro: Matched on partial + full pool. Will predict if using partial pools') if $debug_mode_walkingastro
+      DRC.message('walkingastro: Will not predict if using full pools since cannot detect which pool is full.') if $debug_mode_walkingastro
+      check_predict if @use_partial_pools == true
     else
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
-      DRC.message('walkingastro: Matched on partial filled pool. Only predicting if walkingastro_use_partial_pools: true') if $debug_mode_walkingastro
+      DRC.message('walkingastro: Fell through check due to partial filled pool. Only predicting if walkingastro_use_partial_pools is set to true') if $debug_mode_walkingastro
       check_predict if @use_partial_pools == true
     end
   end
@@ -136,7 +142,7 @@ class WalkingAstro
       DRCMM.use_div_tool(@divination_tool)
       unless @settings.analyze_divination_tool != true
         DRCMM.get_div_tool(@divination_tool)
-        DRC.bput('analyze my #{@divination_tool}','Roundtime')
+        DRC.bput("analyze my #{@divination_tool['name']}",'Roundtime')
         DRCMM.store_div_tool(@divination_tool)
       end
     else
