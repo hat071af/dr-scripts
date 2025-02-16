@@ -118,7 +118,7 @@ class WalkingAstro
     else
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
-      DRC.message('walkingastro: Matched on partial filled pool.') if $debug_mode_walkingastro
+      DRC.message('walkingastro: Matched on partial filled pool. Only predicting if walkingastro_use_partial_pools: true') if $debug_mode_walkingastro
       check_predict if @use_partial_pools == true
     end
   end
@@ -132,10 +132,13 @@ class WalkingAstro
     waitrt?
     if !@divination_bones_storage.empty? && @use_tools == true
       DRCMM.roll_bones(@divination_bones_storage)
-      DRC.bput('analyze my bones','Roundtime')
     elsif !@divination_tool.empty? && @use_tools == true
       DRCMM.use_div_tool(@divination_tool)
-      DRC.bput('analyze my #{divination_tool}','Roundtime')
+      unless @settings.analyze_divination_tool != true
+        DRCMM.get_div_tool(@divination_tool)
+        DRC.bput('analyze my #{@divination_tool}','Roundtime')
+        DRCMM.store_div_tool(@divination_tool)
+      end
     else
       DRCMM.predict('future')
     end
