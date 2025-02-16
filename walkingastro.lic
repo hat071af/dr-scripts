@@ -6,6 +6,9 @@ custom_require.call %w[common common-moonmage]
 
 class WalkingAstro
   def initialize
+    exit unless DRStats.moon_mage?
+
+    @settings = get_settings
     arg_definitions = [
       [
         { name: 'debug', regex: /debug/i, optional: true, description: 'Enable debug output' },
@@ -15,16 +18,29 @@ class WalkingAstro
     args = parse_args(arg_definitions)
     $debug_mode_walkingastro = UserVars.walkingastro_debug || args.debug || false
 
-    settings = get_settings
-    @astrology_prediction_skills_survival = settings.astrology_prediction_skills['survival']
-    @no_use_scripts = settings.walkingastro_no_use_scripts
-    @tele_storage = settings.telescope_storage
-
+    @equipment_manager = EquipmentManager.new
+    @constellations = get_data('constellations').constellations
+    @divination_tool = @settings.divination_tool
+    @divination_bones_storage = @settings.divination_bones_storage
+    @telescope_storage = @settings.telescope_storage
+    @astrology_prediction_skills_magic = @settings.astrology_prediction_skills['magic']
+    @astrology_prediction_skills_lore = @settings.astrology_prediction_skills['lore']
+    @astrology_prediction_skills_offense = @settings.astrology_prediction_skills['offense']
+    @astrology_prediction_skills_defense = @settings.astrology_prediction_skills['defense']
+    @astrology_prediction_skills_survival = @settings.astrology_prediction_skills['survival']
+    @no_use_scripts = @settings.walkingastro_no_use_scripts
+    @use_tools = @settings.walkingastro_use_tools
+    @use_partial_pools = @settings.walkingastro_use_partial_pools
+    @predict_regardless_of_mindstate = @settings.walkingastro_predict_regardless_of_mindstate
+    DRC.message("walkingastro: Confirming toggle states...") if $debug_mode_walkingastro
+    DRC.message("walkingastro: use_tools - #{@use_tools}") if $debug_mode_walkingastro
+    DRC.message("walkingastro: use_partial_pools - #{@use_partial_pools}") if $debug_mode_walkingastro
+    DRC.message("walkingastro: predict_regardless_of_mindstate - #{@predict_regardless_of_mindstate}") if $debug_mode_walkingastro
     main_loop
   end
 
   def get_telescope
-    case DRCMM.get_telescope(@tele_storage)
+    case DRCMM.get_telescope(@telescope_storage)
     when 'You get a', 'You remove', 'You untie'
       determine_time
     when 'You need a free hand to pick that up.'
@@ -32,7 +48,7 @@ class WalkingAstro
     when 'What were you referring to'
       determine_time if righthand.include?('telescope')
       if lefthand.include?('telescope')
-        DRCMM.store_telescope(@tele_storage)
+        DRCMM.store_telescope(@telescope_storage)
         quick_retry
       end
     when 'You are already holding that.'
@@ -48,16 +64,33 @@ class WalkingAstro
   def determine_time
     case DRC.bput('time', 'it is dawn', 'morning', 'midday', 'noon', 'afternoon', 'dusk', 'sunset', 'evening', 'midnight', 'night', 'almost dawn', 'approaching sunrise')
     when 'it is dawn', 'morning', 'midday', 'noon', 'afternoon', 'dusk'
+      @pool = 'survival'
       center('elanthian sun')
     when 'sunset', 'evening', 'midnight', 'night', 'almost dawn', 'approaching sunrise'
-      center('heart')
+      constellation = 'heart' if DRStats.circle >= 1
+      constellation = %w[heart wolf].sample if DRStats.circle >= 2
+      constellation = %w[heart wolf raven].sample if DRStats.circle >= 4
+      constellation = %w[heart wolf raven cat].sample if DRStats.circle >= 12
+      constellation = %w[wolf raven cat ram].sample if DRStats.circle >= 13
+      constellation = %w[wolf raven cat ram magpie].sample if DRStats.circle >= 18
+      constellation = %w[wolf raven spider ram magpie].sample if DRStats.circle >= 40
+      constellation = %w[wolf raven spider ram giant].sample if DRStats.circle >= 41
+      constellation = %w[toad raven spider ram magpie].sample if DRStats.circle >= 44
+      constellation = %w[champions elide issendar kirmhara].sample
+      @pool = 'offense' if constellation == 'cat' || 'spider'
+      @pool = 'defense' if constellation == 'magpie' || 'giant'
+      @pool = 'magic' if constellation == 'wolf' || 'toad'
+      @pool = 'survival' if constellation == 'heart' || 'ram'
+      @pool = 'lore' if constellation == 'raven'
+      @pool = 'survival' if constellation == 'champions' || 'elide' || 'issendar' || 'kirmhara'
+      center(constellation)
     end
   end
 
   def center(target)
     case DRCMM.center_telescope(target)
     when "That's a bit tough to do when you can't see the sky", 'Your search for'
-      DRCMM.store_telescope(@tele_storage)
+      DRCMM.store_telescope(@telescope_storage)
     else
       observe
     end
@@ -65,22 +98,39 @@ class WalkingAstro
 
   def observe
     case DRCMM.peer_telescope
-    when "You believe you've learned all that you can about survival", 'Too many futures cloud your mind - you learn nothing.'
+    when "You believe you've learned all that you can about", "Too many futures cloud your mind - you learn nothing."
       waitrt?
-      DRCMM.store_telescope(@tele_storage)
+      DRCMM.store_telescope(@telescope_storage)
+      DRC.message('walkingastro: Matched on full pool.') if $debug_mode_walkingastro
       check_predict
+    when "You have not pondered your last observation sufficiently", "You see nothing regarding the future", "You are unable to make use of this latest observation"
+      waitrt?
+      DRCMM.store_telescope(@telescope_storage)
+      DRC.message('walkingastro: Matched on too soon or failed attempt. Not predicting.') if $debug_mode_walkingastro
     else
       waitrt?
-      DRCMM.store_telescope(@tele_storage)
+      DRCMM.store_telescope(@telescope_storage)
+      DRC.message('walkingastro: Matched on partial filled pool.') if $debug_mode_walkingastro
+      check_predict if @use_partial_pools == true
     end
   end
 
   def check_predict
-    return if DRSkill.getxp('Astrology') > 25
-
-    DRCMM.align(@astrology_prediction_skills_survival)
+    DRC.message('walkingastro: Prediction called. Checking if going to follow through...') if $debug_mode_walkingastro
+    return if DRSkill.getxp('Astrology') > 25 && @predict_regardless_of_mindstate != true
+    DRC.message('walkingastro: Prediction confirmed.') if $debug_mode_walkingastro
+    
+    DRCMM.align(@pool)
     waitrt?
-    DRC.bput('predict future', 'roundtime')
+    if !@divination_bones_storage.empty? && @use_tools == true
+      DRCMM.roll_bones(@divination_bones_storage)
+      DRC.bput('analyze my bones','Roundtime')
+    elsif !@divination_tool.empty? && @use_tools == true
+      DRCMM.use_div_tool(@divination_tool)
+      DRC.bput('analyze my #{divination_tool}','Roundtime')
+    else
+      DRCMM.predict('future')
+    end
     waitrt?
   end
 
@@ -128,8 +178,18 @@ class WalkingAstro
   def main_loop
     loop do
       if should_observe?
+        # Pause scripts to prevent interference
+        until (scripts_to_unpause = DRC.safe_pause_list)
+          echo("Cannot pause, trying again in 30 seconds.")
+          pause 30
+        end
+        
         DRC.wait_for_script_to_complete('buff', ['walkingastro'])
         get_telescope
+
+        # Resume scripts
+        DRC.safe_unpause_list(scripts_to_unpause)
+
         pause 205
       end
       pause 10
