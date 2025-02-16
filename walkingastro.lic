@@ -76,13 +76,13 @@ class WalkingAstro
       constellation = %w[wolf raven spider ram magpie].sample if DRStats.circle >= 40
       constellation = %w[wolf raven spider ram giant].sample if DRStats.circle >= 41
       constellation = %w[toad raven spider ram magpie].sample if DRStats.circle >= 44
-      constellation = %w[champions elide issendar kirmhara].sample
+      constellation = %w[champions elide issendar kirmhara].sample #this line to be deleted once the wild magic event is over
       @pool = 'offense' if constellation == 'cat' || 'spider'
       @pool = 'defense' if constellation == 'magpie' || 'giant'
       @pool = 'magic' if constellation == 'wolf' || 'toad'
       @pool = 'survival' if constellation == 'heart' || 'ram'
       @pool = 'lore' if constellation == 'raven'
-      @pool = 'survival' if constellation == 'champions' || 'elide' || 'issendar' || 'kirmhara'
+      @pool = 'survival' if constellation == 'champions' || 'elide' || 'issendar' || 'kirmhara' #this line to be deleted once the wild magic event is over
       center(constellation)
     end
   end
