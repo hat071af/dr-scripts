@@ -64,8 +64,10 @@ class WalkingAstro
   def determine_time
     case DRC.bput('time', 'it is dawn', 'morning', 'midday', 'noon', 'afternoon', 'dusk', 'sunset', 'evening', 'midnight', 'night', 'almost dawn', 'approaching sunrise')
     when 'it is dawn', 'morning', 'midday', 'noon', 'afternoon', 'dusk'
+      constellation = %w[champions elide issendar kirmhara].sample
       @pool = 'survival'
-      center('elanthian sun')
+      center(constellation)
+      #center('elanthian sun') #replace above three lines with this once wild magic event is over
     when 'sunset', 'evening', 'midnight', 'night', 'almost dawn', 'approaching sunrise'
       constellation = 'heart' if DRStats.circle >= 1
       constellation = %w[heart wolf].sample if DRStats.circle >= 2
@@ -76,13 +78,19 @@ class WalkingAstro
       constellation = %w[wolf raven spider ram magpie].sample if DRStats.circle >= 40
       constellation = %w[wolf raven spider ram giant].sample if DRStats.circle >= 41
       constellation = %w[toad raven spider ram magpie].sample if DRStats.circle >= 44
-      constellation = %w[champions elide issendar kirmhara].sample #this line to be deleted once the wild magic event is over
-      @pool = 'offense' if constellation == 'cat' || 'spider'
-      @pool = 'defense' if constellation == 'magpie' || 'giant'
-      @pool = 'magic' if constellation == 'wolf' || 'toad'
-      @pool = 'survival' if constellation == 'heart' || 'ram'
-      @pool = 'lore' if constellation == 'raven'
-      @pool = 'survival' if constellation == 'champions' || 'elide' || 'issendar' || 'kirmhara' #this line to be deleted once the wild magic event is over
+      constellation = %w[champions elide issendar kirmhara].sample
+      case constellation
+      when 'cat', 'spider'
+        @pool = 'offense'
+      when 'magpie', 'giant'
+        @pool = 'defense'
+      when 'wolf', 'toad'
+        @pool = 'magic'
+      when 'heart', 'ram', 'champions', 'elide', 'issendar', 'kirmhara'
+        @pool = 'survival'
+      when 'raven'
+        @pool = 'lore'
+      end
       center(constellation)
     end
   end
