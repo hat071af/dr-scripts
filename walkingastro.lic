@@ -31,9 +31,9 @@ class WalkingAstro
     @astrology_prediction_skills_defense = @settings.astrology_prediction_skills['defense']
     @astrology_prediction_skills_survival = @settings.astrology_prediction_skills['survival']
     @no_use_scripts = @settings.walkingastro_no_use_scripts
-    @use_tools = @settings.walkingastro_use_tools
-    @use_partial_pools = @settings.walkingastro_use_partial_pools
-    @predict_regardless_of_mindstate = @settings.walkingastro_predict_regardless_of_mindstate
+    @use_tools = @settings.walkingastro['use_tools']
+    @use_partial_pools = @settings.walkingastro['use_partial_pools']
+    @predict_regardless_of_mindstate = @settings.walkingastro['predict_regardless_of_mindstate']
     DRC.message("walkingastro: Confirming toggle states...") if $debug_mode_walkingastro
     DRC.message("walkingastro: use_tools - #{@use_tools}") if $debug_mode_walkingastro
     DRC.message("walkingastro: use_partial_pools - #{@use_partial_pools}") if $debug_mode_walkingastro
@@ -107,17 +107,27 @@ class WalkingAstro
   end
 
   def observe
-    peer_results = DRCMM.peer_telescope
+    result = DRCMM.peer_telescope
 
-    full_pool = peer_results.any? { |line| line.start_with?("You believe you've learned", "Too many futures" ) }
-    partial_pool = peer_results.any? { |line| line.start_with?("You learned something useful", "Although you were nearly" ) }
-    failed_peer = peer_results.any? { |line| line.start_with?("You are unable to make use", "You have not pondered", "You see nothing regarding") }
+    full_messages = ["You believe you've learned",
+                     "Too many futures"]
+    
+    partial_messages = ["You learned something useful",
+                        "Although you were nearly"]
+
+    failed_messages = ["You are unable to make use of this latest observation", 
+                      "You have not pondered your last observation sufficiently",
+                      "You see nothing regarding the future"]
+    
+    full_pool = result.any? { |line| line.match?(Regexp.union(full_messages) ) }
+    partial_pool = result.any? { |line| line.match?(Regexp.union(partial_messages) ) }
+    failed = result.any? { |line| line.match?(Regexp.union(failed_messages) ) }
 
     #debug messaging
-    DRC.message("peer_results: #{peer_results}") if $debug_mode_walkingastro
+    DRC.message("result: #{result}") if $debug_mode_walkingastro
     DRC.message("full_pool: #{full_pool}") if $debug_mode_walkingastro
     DRC.message("partial_pool: #{partial_pool}") if $debug_mode_walkingastro
-    DRC.message("failed_peer: #{failed_peer}") if $debug_mode_walkingastro
+    DRC.message("failed: #{failed}") if $debug_mode_walkingastro
     case
     when full_pool
       DRC.message('walkingastro: Matched on a full pool.') if $debug_mode_walkingastro
@@ -129,7 +139,7 @@ class WalkingAstro
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
       check_predict if @use_partial_pools == true
-    when failed_peer
+    when failed
       DRC.message('walkingastro: Failed observation. Not predicting.') if $debug_mode_walkingastro
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
@@ -141,8 +151,8 @@ class WalkingAstro
   end
 
   def check_predict
-    DRC.message('walkingastro: Prediction called. Checking if going to follow through based on mindstate and walkingastro_predict_regardless_of_mindstate...') if $debug_mode_walkingastro
-    DRC.message('walkingastro: Not predicting.') if DRSkill.getxp('Astrology') > 25 && @predict_regardless_of_mindstate != true && $debug_mode_walkingastro
+    DRC.message('walkingastro: Prediction called. Checking if going to follow through based on mindstate settings') if $debug_mode_walkingastro
+    DRC.message('walkingastro: Not predicting.') if $debug_mode_walkingastro && DRSkill.getxp('Astrology') > 25 && @predict_regardless_of_mindstate != true
     return if DRSkill.getxp('Astrology') > 25 && @predict_regardless_of_mindstate != true
     DRC.message('walkingastro: Predicting.') if $debug_mode_walkingastro
     
@@ -153,7 +163,7 @@ class WalkingAstro
       DRCMM.roll_bones(@divination_bones_storage)
     elsif !@divination_tool.empty? && @use_tools == true
       DRCMM.use_div_tool(@divination_tool)
-      unless @settings.analyze_divination_tool != true
+      unless @settings.walkingastro['analyze_divination_tool'] != true
         DRCMM.get_div_tool(@divination_tool)
         keep_away
         DRC.bput("analyze my #{@divination_tool['name']}",'Roundtime')
@@ -233,6 +243,13 @@ class WalkingAstro
       pause 10
     end
   end
+end
+
+before_dying do
+  telescope_storage = get_settings.telescope_storage
+  divination_tool = get_settings.divination_tool
+  DRCMM.store_telescope(telescope_storage) if DRC.left_hand.include?('telescope') || DRC.right_hand.include?('telescope')
+  DRCMM.store_div_tool(divination_tool) if DRC.left_hand.include?(divination_tool['name']) || DRC.right_hand.include?(divination_tool['name'])
 end
 
 WalkingAstro.new
