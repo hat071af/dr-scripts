@@ -305,35 +305,25 @@ class Astrology
     Flags.add('bad-search', 'is foiled by the (daylight|darkness)', 'turns up fruitless')
 
     if @have_telescope
-      DRC.message('centering telescope...') #debug
       case DRCMM.center_telescope(body)
       when /Center what/
-        DRC.message('getting telescope...') #debug
         DRCMM.get_telescope?(@telescope_name, @telescope_storage)
         return observe_routine(body)
       when /open it/
-        DRC.message('opening telescope to center...') #debug
         DRC.bput('open my telescope', 'extend your telescope')
         return observe_routine(body)
       when /The pain is too much/, /Your vision is too fuzzy/
-        DRC.message('too injured to observe...') #debug
         get_healed
         return observe_routine(body)
       end
-      DRC.message('peering telescope...') #debug
       result = DRCMM.peer_telescope
       injuries = result.any? { |line| line.start_with?("The pain is too much", "Your vision is too fuzzy" ) }
       closed = result.any? { |line| line.start_with?("You'll need to open it" ) }
-      DRC.message("result: #{result}") #debug
-      DRC.message("injuries: #{injuries}") #debug
-      DRC.message("closed: #{closed}") #debug
       case
       when injuries
-        DRC.message('too injured to peer...') #debug
         get_healed
         return observe_routine(body) 
       when closed
-        DRC.message('opening telescope to peer...') #debug
         DRC.bput('open my telescope', 'extend your telescope')
         return observe_routine(body)
       end
