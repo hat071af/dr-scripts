@@ -3430,12 +3430,22 @@ class TrainerProcess
   end
 
   def observe
-    case DRCMM.peer_telescope
-    when "You believe you've learned all that you can about survival", 'Too many futures cloud your mind - you learn nothing.'
+    result = DRCMM.peer_telescope
+
+    full_messages = ["You believe you've learned",
+                     "Too many futures"]
+    injured_messages = ['The pain is too much',
+                        "Your vision is too fuzzy"]
+    
+    full_pool = result.any? { |line| line.match?(Regexp.union(full_messages) ) }
+    injured = result.any? { |line| line.match?(injured_messages) }
+
+    case
+    when full_pool
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
       check_predict
-    when 'The pain is too much'
+    when injured
       waitrt?
       DRCMM.store_telescope(@telescope_storage)
       @training_abilities.delete('Astro')
