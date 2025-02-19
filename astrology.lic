@@ -22,6 +22,7 @@ class Astrology
     @constellations = get_data('constellations').constellations
     @finished_messages = get_data('constellations').observe_finished_messages
     @success_messages = get_data('constellations').observe_success_messages
+    @injured_messages = get_data('constellations').observe_injured_messages
     @divination_tool = @settings.divination_tool
     @divination_bones_storage = @settings.divination_bones_storage
     @have_telescope = @settings.have_telescope
@@ -317,7 +318,7 @@ class Astrology
         return observe_routine(body)
       end
       result = DRCMM.peer_telescope
-      injuries = result.any? { |line| line.start_with?("The pain is too much", "Your vision is too fuzzy" ) }
+      injuries = result.any? { |line| line.start_with?(@injured_messages) }
       closed = result.any? { |line| line.start_with?("You'll need to open it" ) }
       case
       when injuries
