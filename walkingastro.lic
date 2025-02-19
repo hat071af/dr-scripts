@@ -22,6 +22,9 @@ class WalkingAstro
 
     @equipment_manager = EquipmentManager.new
     @constellations = get_data('constellations').constellations
+    @full_messages = get_data('constellations').observe_full_messages
+    @partial_messages = get_data('constellations').observe_partial_messages
+    @failed_messages = get_data('constellations').observe_failed_messages
     @divination_tool = @settings.divination_tool
     @divination_bones_storage = @settings.divination_bones_storage
     @telescope_storage = @settings.telescope_storage
@@ -108,20 +111,10 @@ class WalkingAstro
 
   def observe
     result = DRCMM.peer_telescope
-
-    full_messages = ["You believe you've learned",
-                     "Too many futures"]
     
-    partial_messages = ["You learned something useful",
-                        "Although you were nearly"]
-
-    failed_messages = ["You are unable to make use of this latest observation", 
-                      "You have not pondered your last observation sufficiently",
-                      "You see nothing regarding the future"]
-    
-    full_pool = result.any? { |line| line.match?(Regexp.union(full_messages) ) }
-    partial_pool = result.any? { |line| line.match?(Regexp.union(partial_messages) ) }
-    failed = result.any? { |line| line.match?(Regexp.union(failed_messages) ) }
+    full_pool = result.any? { |line| line.match?(Regexp.union(@full_messages) ) }
+    partial_pool = result.any? { |line| line.match?(Regexp.union(@partial_messages) ) }
+    failed = result.any? { |line| line.match?(Regexp.union(@failed_messages) ) }
 
     #debug messaging
     DRC.message("result: #{result}") if $debug_mode_walkingastro
