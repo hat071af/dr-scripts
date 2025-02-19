@@ -3432,7 +3432,7 @@ class TrainerProcess
   def observe
     result = DRCMM.peer_telescope
     full_pool = result.any? { |line| line.match?(Regexp.union(get_data('constellations').observe_full_messages) ) }
-    injured = result.any? { |line| line.match?(Regexp.union(get_data('constellations').observe_injured_messages) } }
+    injured = result.any? { |line| line.match?(Regexp.union(get_data('constellations').observe_injured_messages) ) }
     case
     when full_pool
       waitrt?
