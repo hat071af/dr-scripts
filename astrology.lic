@@ -23,6 +23,7 @@ class Astrology
     @finished_messages = get_data('constellations').observe_finished_messages
     @success_messages = get_data('constellations').observe_success_messages
     @injured_messages = get_data('constellations').observe_injured_messages
+    @force_visions = @settings.astrology_force_visions
     @divination_tool = @settings.divination_tool
     @divination_bones_storage = @settings.divination_bones_storage
     @have_telescope = @settings.have_telescope
@@ -318,7 +319,7 @@ class Astrology
         return observe_routine(body)
       end
       result = DRCMM.peer_telescope
-      injuries = result.any? { |line| line.start_with?(@injured_messages) }
+      injuries = result.any? { |line| line.match?(Regexp.union(@injured_messages) ) }
       closed = result.any? { |line| line.start_with?("You'll need to open it" ) }
       case
       when injuries
@@ -343,9 +344,9 @@ class Astrology
     end
     DRCMM.align(skill)
     waitrt?
-    if !@divination_bones_storage.empty?
+    if !@divination_bones_storage.empty? && @force_visions != true
       DRCMM.roll_bones(@divination_bones_storage)
-    elsif !@divination_tool.empty?
+    elsif !@divination_tool.empty? && @force_visions != true
       DRCMM.use_div_tool(@divination_tool)
     else
       DRCMM.predict('future')
